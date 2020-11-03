@@ -19,6 +19,8 @@ One of advantages using input control file is that user can write BASH scripts t
 
 6. Some tools and modules would be saved in tools and modules directories, respectively.
 
+7. Some results were displayed in my PPT (pdf format) files. I would upload more and organize the files and folders.
+
 
 I would upload more codes from the cluster after cleaning those programs (there are some tests scripts in them).
 
