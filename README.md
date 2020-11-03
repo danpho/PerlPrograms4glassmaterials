@@ -1,6 +1,6 @@
 # PerlPrograms4glassmaterials
 
-This directory is under constructing. Most programs have been done before 2020. Some programs are developping for more functions. 
+This directory is under constructing. Most programs had been done before 2020. Some programs are developping for more functions. 
 
 All programs were written by Dr. Liaoyuan Wang. All CopyRights belong to Liaoyuan Wang.
 
@@ -18,6 +18,8 @@ One of advantages using input control file is that user can write BASH scripts t
 5. All output files or intermediated files would be generated and saved in current or a particular directory which would be set in input control file. I strongly suggest users submit the job using slurm with command time. So you could set and get log files which provide error or output information.
 
 6. Some tools and modules would be saved in tools and modules directories, respectively.
+
+7. Some results were displayed in my PPT (pdf format) files. I would upload more and organize the files and folders.
 
 
 I would upload more codes from the cluster after cleaning those programs (there are some tests scripts in them).
