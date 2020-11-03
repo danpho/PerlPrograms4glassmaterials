@@ -1,6 +1,6 @@
 # PerlPrograms4glassmaterials
 
-This directory is under constructing. Most programs have been done before 2020. Some programs are developping for more functions. 
+This directory is under constructing. Most programs had been done before 2020. Some programs are developping for more functions. 
 
 All programs were written by Dr. Liaoyuan Wang. All CopyRights belong to Liaoyuan Wang.
 
