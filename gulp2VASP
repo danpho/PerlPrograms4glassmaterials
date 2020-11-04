@@ -1,0 +1,337 @@
+#!/usr/bin/perl
+#
+###################################################################################################
+#                                     may 29, 2009                                                #
+#      This can be used to prepare the neccessary files for VASP calculations                     #
+#      like vasp rellaxation, Cij calculation and GPT or phonon calculation.                      #
+#      Inorder to get required files for particulal job use -j job_name                           #
+#      Then type of the crystal (crystal symmetry) to be used for phonon calculations             #
+#      for this use -t type_of crystal(symmetry). Then -p and -s are the potential and potential  #
+#      subtypes(like standard, soft, hard etc.) for POTCAR file tobe generated.                   #
+#                                                                                                 #
+#      eg:  gulp2VASP -j phonon -t hexagonal -p  potpaw -s  standard                              #
+#                                                                                                 #
+#      This program needs some other programs to function such as gulp, gulp2potcar and           #
+#      gulp2poscar and some unix oneline commands. If the POTCAR and POSCAR file exist            #
+#      then it simlpy skips this part so it can  be run for existing POSCAR and POTCAR.           #
+#      Inorder to generate the other nessacery files there must be  gulp.out file so its better   #
+#      while making input files start from gulp.dat file. If you are using relaxed structure then #
+#      use the vasp2gulp to get the relaxed gulp.dat file.                                        #
+###################################################################################################
+use Env;
+
+# define command line parameters.
+
+while ($number < scalar(@ARGV))
+{
+        if ($ARGV[$number] eq "-j")
+        {$vaspjob = $ARGV[++$number];}
+        elsif ($ARGV[$number] eq "-t")
+        {$symmetry = $ARGV[++$number];}
+        elsif ($ARGV[$number] eq "-p")
+        {$potential = $ARGV[++$number];push(@POTCARARGS,"-p $potential ");}
+        elsif ($ARGV[$number] eq "-s")
+        {$potsubtype = $ARGV[++$number];push(@POTCARARGS,"-s $potsubtype ");}
+        else
+        {die "Umknown parameter $ARGV[$number] used. Aborting \n";}
+        $number++;
+}
+#Record the command line used to create this set of input files.
+open (COMMANDLINE,">>command");
+print COMMANDLINE "~/gpt/gulp2VASP ";
+for ($i = 0; $i <= $#ARGV; $i++)
+    {print COMMANDLINE "$ARGV[$i] ";}
+print COMMANDLINE "\n";
+close (COMMANDLINE);
+
+# Use gulp2potcar program to geerate POTCAR file from gulp.dat file.
+if (not -e "POTCAR")
+{
+   $POTCAR = "~/gpt/gulp2potcar @POTCARARGS";
+   #print STDOUT "$POTCAR\n";
+   system($POTCAR) == 0 or die "Program $POTCAR failed: Aborting";
+}
+# Use gulp2poscar program to generate POSCAR file from gulp.dat (gulp.out) file.
+if (not -e "POSCAR")
+{
+   $POSCAR = ("~/gpt/gulp2poscar");
+   system($POSCAR) == 0 or die "Program $POSCAR failed. Aborting";
+}
+# Make KPOINTS file.
+
+open(KPTS, ">KPOINTS") || die "can not open KPOINTS file for writting. Aborting \n";
+
+$KPOINTS = "G
+0
+G
+$X_Kpts  $Y_Kpts $Z_Kpts
+0        0        0";
+#print KPTS  $KPOINTS; 
+# open gulp.out file and get the molecular formula of the crystal to write as the system name in INCAR file.
+open(GULPOUT, "<gulp.out") || die "can not open gulp.out file for reading.\n";
+ while (<GULPOUT>){
+  if ($_ =~ /Formula =/)
+{
+  my @system_name = split (/\s+/, $_);
+  $systemName =  @system_name[3];
+  last;};
+}
+
+# Find the cell parameters (a , b, c)  in  file  gulp.out and use the information to determine 
+# the K-points in KPOINTS file and supercell parameters in INPHONE file.
+while(<GULPOUT>){
+     if ($_ =~  /Cell parameters/)
+     {last;};
+}
+     {<GULPOUT>;}
+foreach $i (1..3)
+{        
+     $latticeline =  <GULPOUT>;
+     @cellParameters = split (/\s+/, $latticeline);
+     $abc[$i] = "$cellParameters[3]";
+}
+$lattice_a = $abc[1];
+$lattice_b = $abc[2];
+$lattice_c = $abc[3];
+# Make KPOINTS file and determine kpoints values according to 
+# crystal lattice parameters.
+if ($lattice_a > 10)
+   {$X_Kpts = 1;}
+elsif (($lattice_a > 5) &&  ($lattice_a <= 10))
+   {$X_Kpts = 2;}
+else
+   {$X_Kpts = 4;}
+if ($lattice_b > 10)
+   {$Y_Kpts = 1;}
+elsif (($lattice_b > 5) &&  ($lattice_b <= 10))
+   {$Y_Kpts = 2;}
+else
+   {$Y_Kpts = 4;}
+if ($lattice_c > 10)
+   {$Z_Kpts = 1;}
+elsif (($lattice_c > 5) &&  ($lattice_c <= 10))
+   {$Z_Kpts = 2;}
+else
+   {$Z_Kpts = 4;}
+
+open(KPTS, ">KPOINTS") || die "can not open KPOINTS file for writting. Aborting \n";
+
+$KPOINTS = "G
+0
+G
+$X_Kpts   $Y_Kpts   $Z_Kpts
+0   0   0";
+# Determine the ISMEAR value.
+if ($X_Kpts * $Y_Kpts * $Z_Kpts > 4)
+   {$ismear = -5;}
+else
+   {$ismear = 0;}
+
+#create job file ########## This section is created by Liaoyuan Wang
+open (JOB,">lsf"  || die "Cannot OPEN job file for writing. Aborting \n";
+print JOB "#BSUB -L /bin/bash \n";
+print JOB "#BSUB -oo $systemName.out \n";
+print JOB "#BSUB -eo $systemName.err \n";
+print JOB "#BSUB -J $systemName.vasprelax \n\n";
+
+print JOB "#BSUB -a openmpi \n";
+print JOB "#BSUB -n 32 \n";
+print JOB "#BSUB -q \"normal\" \n\n";
+
+#print JOB "mpirun.lsf /ibfs1/home/lwang/bin/vasp5.2 \> vasp.log\n";
+print JOB "#mpirun.lsf /home/lwang/bin/gvasp > $systemName.gvasp46.log      #(VASP 4.6 and for KPOINTS = 111)\n";
+print JOB "#mpirun.lsf /home/lwang/bin/gvasp5.2 > $systemName.gvasp52.log   #(VASP 5.2 and for KPOINTS = 111)\n";
+
+print JOB "#mpirun.lsf /home/lwang/bin/vasp > $systemName.vasp46.log      #(VASP 4.6 and for any KPOINTS)\n";
+print JOB "#mpirun.lsf /home/lwang/bin/vasp5.2 > $systemName.vasp52.log   #(VASP 5.2 and for any KPOINTS)\n";
+
+print JOB "/home/lwang/bin/email\n";
+
+close(JOB);
+
+#Make INCAR file.
+open(INCR, ">INCAR") || die "can not open INCAR file for writting. Aborting \n";
+
+$INCAR ="System =  $systemName
+
+ISMEAR = $ismear       ! Use 0 for  KPOINTS less than 4 otherwise -5.
+
+LCHARG = .FALSE.  !To save disk space.If need it, set it as .TRUE.
+LWAVE  = .FALSE.  !Same to above
+
+PREC  = Accurate  ! low, medium, normal are other options. Use suitable one.
+ENCUT = 500 eV    ! Decide considering the crystal size and accuracy you want.
+EDIFF = 1.0E-5    ! Enegy difference covergence limit for electronic optimization.
+EDIFFG = -1.0E-3   ! Enegy difference covergence limit for ionic optimization.
+
+IBRION = 1        ! 0 for MD, 1 best, 2 for diff relaxation problems. Othere numbers for diffrent cases.
+NSW    = 100      ! Total number of ionic steps.
+ISIF   = 3        ! 2 and 4 ionic, 7 volume and 3 both.
+
+LREAL  = Auto     ! Projection on real space. use FALSE (default) for reciprocal space.
+NPAR   = 16       ! Best sqrt of NCPUs used. should be >= NCPUs/32.
+ALGO   = Fast     ! default is Normal.";
+#Make INCAR.phonon file.
+$INCARphonon  ="System =  $systemName
+
+ISMEAR = $ismear       ! Use 0 for  KPOINTS less than 4 otherwise -5.
+
+PREC  = Accurate  ! low, medium, normal are other options. Use suitable one.
+ENCUT = 500 eV    ! Decide considering the crystal size and accuracy you want.
+EDIFF = 1.0E-5    ! Enegy difference covergence limit for electronic optimization.
+EDIFFG = -1.0E-3   ! Enegy difference covergence limit for ionic optimization.
+
+#IBRION = 1       ! 0 for MD, 1 best, 2 for diff relaxation problems. Othere numbers for diffrent cases.
+#NSW    = 100     ! Total number of ionic steps.
+#ISIF   = 3       ! 2 and 4 ionic, 7 volume and 3 both.
+
+#LREAL  = Auto    ! Projection on real space. use FALSE (default) for reciprocal space.
+LCHARG = .FALSE.  ! It will avoid writting CHARGECAR and CHG files. Use it in large crystals.
+LWAVE  = .FALSE.  ! It will avoid writting WAVECAR file. Use it in large crystals.
+NPAR   = 16       ! Best sqrt of NCPUs used. should be >= NCPUs/32.
+ALGO   = Fast     ! default is Normal.";
+# Crystal symmetry to be supplied as command line parameter as -c $$symmetry.
+# $symmetry = hexagonal, tetragonal, orthorohmbic, trigonal, scc, fcc, bcc, diamond, wurtzite.
+if (($vaspjob eq "phonon") || ($vaspjob eq "FVT"))
+{
+    $SKPT = " $HOME/gpt/kset/$symmetry.dat";
+    system("dos2unix $SKPT");
+    open(SKPT,"<$SKPT") || die "cannot open $SKPT file for reading.\n";
+    @skpt = <SKPT>;
+    close (SKPT);
+}
+# define supercell size based on crystal lattice of the crystal.
+if ($lattice_a > 10)
+   {$lattice_x = 1;}
+else
+   {$lattice_x = 2;}
+if ($lattice_b > 10)
+   {$lattice_y = 1;}
+else
+   {$lattice_y = 2;}
+if ($lattice_c > 10)
+   {$lattice_z = 1;}
+else
+   {$lattice_z = 2;}
+
+# INPHON file for phonon and gpt calculations
+if (($vaspjob eq "phonon") ||($vaspjob eq "FVT")) 
+{
+open (INPN, ">INPHON")||die "canot open INPHON file for writting.\n";
+$INPHON1 = "# Symmetryze force constant matrix
+#    LSYMM=.FALSE.
+     NTI  = 100
+
+# Generate superlattice
+     LSUPER = .F.
+     NDIM   = $lattice_x  $lattice_y  $lattice_z ! supercell to be used for phonon calculation.
+     DISP   = 800
+# Number of ions types and masses
+     LFREE  = .F.
+     TEMPRATURE = 2000
+#     LNONANALYTIC = .T.
+# Q points section
+     LRECIP = .T.
+     ND = 4; NPOINTS = 100 !ND=# of segments for phonon spectra, NPOINTS = # of points in each segment
+# copy from gpt/kset for the appropriate crystal"; 
+print INPN "$INPHON1\n";
+print INPN "@skpt\n";
+$INPHON2 ="# density of states
+     LGAMMA = .FALSE.
+     QA = 20; QB = 20; QC = 20
+     DOSIN = 0;  DOSEND = 60;  DOSSTEP = 0.05; DOSSMEAR = 0.1
+# write force constant matrix
+     LFORCEOUT = .T.
+
+# verbosity
+     IPRINT = 0  !=0,default, =3, for vibrational model, not ready.";
+print INPN "$INPHON2\n";
+}
+#print INCR $INCAR;
+if ($vaspjob eq "relax")
+{
+    print INCR $INCAR;
+    print KPTS $KPOINTS;
+}   
+elsif ($vaspjob eq "cij")
+{   
+    if (not -e "Input")
+    {mkdir "Input";}
+    print INCR $INCAR;
+    print KPTS $KPOINTS;
+    `mv INCAR Input/INCAR.opt`;
+    `mv KPOINTS Input/KPOINTS.opt`;
+    if (-e "Input/POSCAR"){
+    `rm POSCAR`;}
+    else 
+    {`mv POSCAR  Input/POSCAR`;}
+    if (-e "Input/POTCAR")
+    {`rm POTCAR`;}
+    else
+    {`mv POTCAR  Input/POTCAR`;}
+}
+elsif (($vaspjob eq "phonon") || ($vaspjob eq "FVT"))
+{
+    if (not -e "Input")
+    {mkdir "Input";}
+    print INCR $INCAR;
+    print KPTS $KPOINTS;
+    `cp INCAR Input/INCAR.opt`;
+    `cp KPOINTS Input/KPOINTS.opt`;
+    `mv INCAR Input/INCAR.phonon.scf`;
+    `mv KPOINTS Input/KPOINTS.phonon`;
+    if (-e "Input/POSCAR")
+    {`rm  POSCAR`;}
+    else
+    {`mv POSCAR  Input/POSCAR`;}
+    if (-e "Input/POTCAR")
+    {`rm POTCAR`;}
+    else
+    {`mv POTCAR  Input/POTCAR`;}
+    `mv INPHON  Input/INPHON`;
+}
+#Determine the project name
+   $pwd=`pwd`;
+
+my $mypwd=`pwd`;
+chomp ($mypwd);
+my @directories=split(/\//,"$mypwd");
+my $proj_home=$directories[$#directories];
+my $mydate=`date`;chomp($mydate);
+my $myusername=`whoami`;chomp($myusername);
+my $myhostname=`hostname`;chomp($myhostname);
+
+
+open (INFO, ">$mypwd/info.dat");
+         print INFO "Files created on $mydate. \n";
+         print INFO "    Created by $myusername\@$myhostname.\n";
+         print INFO "     Files\@ $mypwd\n"; 
+         #print INFO "     Files\@ $mypwd\/$currentDirName\n"; 
+close(INFO);
+
+#create job file ########## This section is created by Liaoyuan Wang
+open (JOB,">lsf")  || die "Cannot OPEN job file for writing. Aborting \n";
+print JOB "#BSUB -L /bin/bash \n";
+print JOB "#BSUB -oo $systemName.out \n";
+print JOB "#BSUB -eo $systemName.err \n";
+print JOB "#BSUB -J $systemName.vasprelax \n\n";
+
+print JOB "#BSUB -a openmpi \n";
+print "Input core number you want to use (1-48,default 48):\t";
+$core_number=<STDIN>;
+if ($core_number > 0)
+{print JOB "#BSUB -n $core_number \n";}
+else
+{print JOB "#BSUB -n 48 \n";}
+print JOB "#BSUB -q \"normal\" \n\n";
+
+#print JOB "mpirun.lsf /ibfs1/home/lwang/bin/vasp5.2 \> vasp.log\n";
+print JOB "#mpirun.lsf /home/lwang/bin/gvasp > $systemName.gvasp46.log      #(VASP 4.6 and for KPOINTS = 111)\n";
+print JOB "#mpirun.lsf /home/lwang/bin/gvasp5.2 > $systemName.gvasp52.log   #(VASP 5.2 and for KPOINTS = 111)\n";
+
+print JOB "#mpirun.lsf /home/lwang/bin/vasp > $systemName.vasp46.log      #(VASP 4.6 and for any KPOINTS)\n";
+print JOB "#mpirun.lsf /home/lwang/bin/vasp5.2 > $systemName.vasp52.log   #(VASP 5.2 and for any KPOINTS)\n";
+
+print JOB "/home/lwang/bin/email\n";
+
+close(JOB);
