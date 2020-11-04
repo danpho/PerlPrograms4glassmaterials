@@ -1,0 +1,18 @@
+  Y                #LN1  Y:fix the initial frame as a reference, N:user can choose different frame as a reference
+  Y                #LN2  Y:track the atoms in the reference box, N:not track the atoms in the reference box
+  12354            #LN3  atom amount in glass
+  5427             #LN4  atom amount in water
+  10               #LN5  thickness in glass box, unit A
+  5                #LN6  thickness in water box, unit A
+  1x200.lammpstrj  #LN7  lammpstrj file name
+  Y                #LN8  Y/N specify the initial z value y/n
+  88.69993         #LN9  top location of glass box, unit A
+  90.70002         #LN10 bottom location of water box
+  0                #LN11 initial timestep for converting higher timestep to lower one
+  20000            #LN12 final timestep
+  100              #LN13 gap between two sequential timesteps
+  500kstp          #LN14 step stamp
+  c3               #LN15 composition stamp
+  17               #LN16 thickness of interface box
+  wslab.pl         #LN17 parents program which call wcntspecies.pl.It could be wslab.pl, wzdpdumpl2g.pl
+

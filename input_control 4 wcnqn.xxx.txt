@@ -1,0 +1,19 @@
+0               #target atom ID. If # <=0, analyze CN & Qn; or analyze bondlength(BL) of target & neighbors. PLEASE UPDATE search depth below. CN & Qn default 1; else use atom ID which is >=1. In the future 
+N                   #Y:1st run this program or data has been changed. user need to (re)check data.   N: no need to check or recheck data, if first run, MUST set Y
+A                   #= 'a' or 'i'. flag for all atoms ('a') or only interested atoms ('i')
+SI AL               #formers divided by space
+CA                  #modifiers divided by space
+stp                 #keyword in simulating directories in each of which there is analyzing directory and dump file
+newzdp              #analyzing directory in which dump file exists ==> $anly_dir, $DFT_ANL_DIR(default value)
+dump.all.lammpstrj  #dump file name  ==>  $file_input_struc   ==> $file="$sim_dir/$file_input_struc"
+rct_trk             #tracking directory  ==> $dir_trk
+comp_               #abbreviation of composition, following by number. e.g. comp_1
+Lanalysis           #control file. Suggest use local (in simulating directory) file. ==> $Lanalysis. Currently use in common directory ==> $LANALYSIS
+model_info.log      #model file which shows total atom number, glass and water atom number, thickness of interface box (glass surface + water surface)  ==> $model_file
+Z                   #trunk along Z/Y/X/XYZ. Currently only support 1D or 3D ==> $flg_interface=-3/-2/-1/0
+2                   #search depth starting from 0. 0 target atom; 1:1st level neighbor which directly bounds to target; 2: 2nd level neighbor which bonds to 1st level one
+in.Surface          #LAMMPS input control file
+124500              #starting time of sampling range 0-5000fs (from LAMMPS input control file:200frames based on timestep=0.25 and extract 1 trojectroy every 100 timesteps) or any range(no support now).
+125500              #ending time of sampling range 0-5000fs (from LAMMPS input control file: 200frames based on timestep=0.25 and extract 1 trojectroy every 100timesteps) or any range(no support now).
+1000025             #maximum time for loop control above $ctrl_loop_tstp_sampling
+12                  #maximum CN_NO for all species, including former, modifer, .... user needs to define it based on CN for all species and choose the maximum one

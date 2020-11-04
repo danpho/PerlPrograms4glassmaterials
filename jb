@@ -1,0 +1,176 @@
+#!/usr/bin/perl -w
+#/*====================================================
+#
+# Author: Liaoyuan Wang    
+# Email: wly_ustc@hotmail.com  
+#  @ Copyright @  belongs to Liaoyuan Wang.
+#  @ You can copy, modify and use it 
+#  @ in computers of ESG group,
+#  @ However, you can NOT copy to the
+#  @ other machines without Dr. Wang's permission 
+#  @ or use it in commercial purpose. Any question,
+#  @ please contact with Mr. Wang. 
+# Created by:2012-09-27 22:47
+# Last modified:	2015-02-12 11:11
+#
+# Filename:		jb
+#
+# Description:
+# Check job info, such as job id, job name, submitted time, job location,etc.
+#=====================================================*/
+#set the strict condition
+use strict;
+use warnings;#give a warning message when error occured
+use diagnostics; #When you do not understand the warning message, use it to learn more info.It cost a lot of resource!
+use Term::ANSIColor; #Set the text color for output. color: red, cyan, green, yellow, blue,CLEAR, RESET, BOLD, DARK, UNDERLINE, UNDERSCORE, BLINK, REVERSE, CONCEALED, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE, ON_BLACK, ON_RED, ON_GREEN, ON_YELLOW, ON_BLUE, ON_MAGENTA, ON_CYAN, and ON_WHITE 
+#    print color 'bold blue';
+#    print "This text is bold blue.\n";
+#    print color 'reset';
+#    print "This text is normal.\n";
+#    print colored ("Yellow on magenta.", 'yellow on_magenta'), "\n";
+#    print "This text is normal.\n";
+#    print colored ['yellow on_magenta'], 'Yellow on magenta.';
+#    print "\n"; 
+use Math::Trig;
+#print "Please make sure the \"\033[31;1mlabel.dat\033[0m\");
+#print "Please make sure the ",colored("label.dat",'bold red')," file with title to avoid some errors. \n";
+#print colored ($char,'bold red');
+#print colored ("$digit", 'bold red);
+
+################ input user id to get the job info for this user ##################
+my $USER='lwang';    #set default user name
+print "Input your user ID (default USER with ENTER: ",colored($USER,'bold yellow'), "):\t";
+my $userid=<STDIN>;
+chomp($userid);
+#print "length(userid)=$userid\n";
+if (length($userid)>1)
+{$USER=$userid};
+
+####################### get user's job info #####################
+`bjobs -u $USER > jobid`;        #to get job id, user, status, name, etc.
+#`bhist -u $USER > jobstat`;  
+`bhist -l -u $USER > jobinfo`;   #to get all info which includes directory
+`bjobs -u $USER`;
+my $filesize= -s "jobid";
+if ($filesize ==0)
+{print "The user ", colored("$USER",'bold yellow')," may not exist or has not submit any job; or the user's job has done.\n";}   #to give the general info including runing or pending jobs under this user account
+else
+{
+   ####################### get user's job ID,user,stat,queue,job name, and job submit time
+   my $HOST='lewis';
+   my $line;
+   my @values;my @values_2;
+   my @id_list;my @id_info;
+   my @directory;
+   my @sub_time;  #to get submit time
+   my $i; my $j;
+   my @tmp;
+
+   open JOBID,"<jobid";
+   $i=1;
+   while ($line=<JOBID>)
+   {
+      if ($i>1)
+      {
+         chomp($line);
+         $line=~s/^ +//;
+   #print length($line),"\n";
+   @tmp=split(/\s+/,$line);
+   #print $#tmp,"element number of tmp\n";
+         if (length($line) <=53)
+         {next;}
+         else
+         {
+            @values=split(/\s+/,$line);      #to get each fields values
+            #print @values;
+            $id_list[$i-1]=$values[0];
+            @values_2=split(/\s+$HOST\s+/,$line);  
+            #print"\n\n";print @values_2;
+            $id_info[$i-1]=$values_2[0];
+   #$j=$i-1;
+   #print "i=$j\t$id_list[$j]\n"; 
+         }
+      }
+      $i++;
+   }
+   $i=$i-2;
+   print "There is/are ",colored("$i",'bold yellow')," jobs in running or pending or suspended status.\n\n";
+   close JOBID;
+
+   #####################   To get job directory
+   open JOBINFO,"<jobinfo";
+   open JOB,">jobinfo.tmp";
+   my $tmp_char;
+   while($line=<JOBINFO>)
+   {
+      chomp($line);
+#      $line=~s/^ +//;
+      $line=~s/^\s+|\s+$//g;
+      if (length($line)>2)
+      {
+         $tmp_char=substr($line, 1,3);
+         if($tmp_char eq "---")
+         {print JOB "\n";}
+         else
+         {print JOB $line;}#print $line, "\n";}
+      }
+   }
+   close JOBINFO;close JOB;
+
+   ####################### List job information #############################
+   open JOBINFO, "<jobinfo.tmp";
+   open JOB,">jobinfo.dat";
+   $i=1;$j=1;
+   my @val_job; my @val_name; my @val_usr; my @val_dir;my @val_sub_time; my @val_start_running_time;
+   my @val_tmp1; my @val_tmp2;my @val_tmp3; my @val_tmp4; my @val_tmp5; my @val_tmp6; my @val_tmp7;
+   my @global_tmp;
+   print "JOB_ID\tUSER\tSTAT\tQUEUE\tJOB_NAME\tSUBMIT_TIME\tStart_Running_time\tFile_LOCATION\n";
+   while($line=<JOBINFO>)
+   {
+#Job <296817>, Job Name <Al3O6Er.vasprelax>, User <lwang>, Project <default>, Command <#BSUB -L /bin/bash ;#BSUB -oo Al3O6Er.out ;#BSUB -eo Al3O6Er.err ;#BSUB -J Al3O6Er.vasprelax ; #BSUB -a openmpi ;#BSUB -n 24;  #BSUB -q "normal" ; mpirun.lsf /home/lwang/bin/gvasp > Al3O6Er.gvasp46.log      #(VASP 4.6 and forKPOINTS = 111);/home/lwang/bin/email>Thu Feb  5 08:27:34: Submitted from host <lewis>, to Queue <normal>, CWD <$HOME/data/relaxation/al2o3/pearson/alpha-al2o3/298K/cif/pdb/al2o3er/al1-er/er-al1/test>, Output File (overwrite) <Al3O6Er.out>, Error File (overwrite) <Al3O6Er.err>, 24 Processors Requested, Login Shell </bin/bash>;Summary of time in seconds spent in various states by  Thu Feb  5 16:49:33PEND     PSUSP    RUN      USUSP    SSUSP    UNKWN    TOTAL30119    0        0        0        0        0        30119
+
+      chomp($line);
+      @values=split(/Job </,$line);    #to get job id. VALUE:values[0]=.EMPTY. [1]=296817>, Job Name <....
+      @val_tmp1=split(/>, Job Name </,$values[1]);    # tmp1[0]=29681 |[1]=Al3O6Er.vasprelax>, User <lwang>,....
+      $val_job[$i]=$val_tmp1[0];       #job id        
+      @val_tmp2=split(/>, User </,$val_tmp1[1]);      # tmp2[0]=Al3O6Er.vasprelax | [1]=lwang>, Project ....
+      $val_name[$i]=$val_tmp2[0];      #job name      
+      @val_tmp3=split(/>, Project/,$val_tmp2[1]);     # tmp3[0]=lwang | [1]=<default>....
+      $val_usr[$i]=$val_tmp3[0];       #job user
+   #   @val_tmp4=split(/Execution CWD </,$val_tmp3[1]);
+      @val_tmp4=split(/CWD </,$val_tmp3[1]);          # tmp4[0]=...  | [1]=$HOME/data/....
+      @val_tmp5=split(/>,/,$val_tmp4[1]);             # tmp5[0]=$HOME/data... | [1]=Output File ...
+      chomp($val_tmp5[0]);
+      $val_dir[$i]=$val_tmp5[0];       #job directory
+      @tmp=split(/: Submitted/,$values[1]);           # tmp[0]=.../email> Thu Feb...27:34 | [1]=from host ...
+      @val_tmp6=split(/email>/,$tmp[0]);              # tmp6=[0]= ....| [1]= Thu Feb...27:34 
+      $val_sub_time[$i]=$val_tmp6[1];  #job submit time
+
+
+      @val_tmp7=split(/Starting \(/,$values[1]);      # tmp1[0]=29681 |[1]=Al3O6Er.vasprelax>, User <lwang>,....
+   
+      #If system is running the job, we can use following scripts; or we have to show pending status.
+      if ($#val_tmp7>0)
+      {  @global_tmp=split(/\)\;/,$val_tmp7[1]);
+         @val_tmp7=split(/: Running with execution home/,$global_tmp[1]);
+         $val_start_running_time[$i]=$val_tmp7[0];
+      }
+      else
+      {  print colored("Job is in pending status.\n", "BOLD RED");
+         $val_start_running_time[$i]="N/A";}
+   
+   #  print "\n\n$tmp[0]\n$tmp[1]\n$val_sub_time[1]\n\n\n";
+      $j=1;
+      while ($val_job[$i] != $id_list[$j])
+      {$j++;}
+   #   print $id_list[$j],$val_job[$i],"\n";
+      print "$id_info[$j]  ";
+      print "$val_name[$i]\t$val_sub_time[$i]\t";
+      print "$val_start_running_time[$i]";
+      print "\n$val_dir[$i]\n\n";
+   #   print "$val_job[$i]\t$val_name[$i]\t$val_usr[$i]\t$val_dir[$i]\n";
+      $i++;
+   }      
+
+   `rm -fr jobid jobinfo jobinfo.tmp jobinfo.dat`;
+}
